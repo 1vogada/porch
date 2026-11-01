@@ -7,9 +7,11 @@
 <meta name="referrer" content="no-referrer">
 <title>Access</title>
 <style>
-  :root { --bg: #f4f5f7; --panel: #fff; --text: #1d2330; --muted: #677085; --line: #d9dde4; --accent: #2f5fd0; --bad: #b3392f; }
+  :root { --bg: #f4f5f7; --panel: #fff; --text: #1d2330; --muted: #677085; --line: #d9dde4; --accent: #2f5fd0; --bad: #b3392f;
+          --on: #1f8a4c; --off: #8a919e; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #14171d; --panel: #1c2028; --text: #e6e9ef; --muted: #98a1b3; --line: #2c323d; --accent: #7aa2ff; --bad: #e07068; }
+    :root { --bg: #14171d; --panel: #1c2028; --text: #e6e9ef; --muted: #98a1b3; --line: #2c323d; --accent: #7aa2ff; --bad: #e07068;
+            --on: #4cc27f; --off: #7d8596; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text);
@@ -22,10 +24,16 @@
            background: var(--accent); color: #fff; cursor: pointer; }
   button:disabled { opacity: .5; }
   #m { min-height: 20px; margin-top: 10px; font-size: 14px; color: var(--bad); }
+  #st { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--off); margin: 0 0 12px; }
+  #st::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  #st.on { color: var(--on); }
+  #off { display: none; font-size: 13px; color: var(--muted); margin: -6px 0 12px; }
 </style>
 </head>
 <body>
 <form id="f" autocomplete="off">
+  <div id="st" role="status" aria-live="polite">Game: checking...</div>
+  <div id="off">The game is offline right now, try later.</div>
   <h1>Enter your key</h1>
   <input id="k" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" spellcheck="false" autocapitalize="characters" required>
   <button id="b" type="submit">Continue</button>
@@ -60,13 +68,38 @@
     } catch { m.textContent = "Not reachable right now. Try again later."; }
     b.disabled = false;
   });
-  // a saved key: straight on (not again within a minute of the last jump, so a key that stopped working shows the box)
+  // The game's status (docs/invite.md "Game status"): the game link's /status answers { online, players } without a
+  // key. Any network error, timeout or other answer means offline (the tunnel or the PC is down). Every 30 s.
+  const st = document.getElementById("st"), off = document.getElementById("off");
+  let online = false;
+  const show = (on) => {
+    online = on;
+    st.textContent = on ? "Game: online" : "Game: offline";
+    st.className = on ? "on" : "";
+    off.style.display = on ? "none" : "block";
+  };
+  const check = async () => {
+    if (!c.length) { show(false); return; }
+    const ac = new AbortController(), t = setTimeout(() => ac.abort(), 6000);
+    try {
+      const r = await fetch(at() + "/status", { credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store", signal: ac.signal });
+      const j = r.ok ? await r.json().catch(() => ({})) : {};
+      show(j.online === true);
+    } catch { show(false); }
+    clearTimeout(t);
+  };
+  setInterval(check, 30000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void check(); });
+  // a saved key: straight on once the game answers (not again within a minute of the last jump, so a key that stopped
+  // working shows the box); while it is offline the box stays, with the note
   const saved = get(SLOT) || "";
-  if ((saved || get(DEV)) && c.length && Date.now() - Number(get(JUMP) || 0) > 60000) {
-    put(JUMP, String(Date.now()));
-    m.style.color = "inherit"; m.textContent = "Opening...";
-    location.replace(hand(at() + "/enter", saved));
-  }
+  check().then(() => {
+    if (online && (saved || get(DEV)) && c.length && Date.now() - Number(get(JUMP) || 0) > 60000) {
+      put(JUMP, String(Date.now()));
+      m.style.color = "inherit"; m.textContent = "Opening...";
+      location.replace(hand(at() + "/enter", saved));
+    }
+  });
 </script>
 </body>
 </html>
