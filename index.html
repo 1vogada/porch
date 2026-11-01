@@ -36,6 +36,15 @@
   const c = ["bW9jLmV","yYWxmZH","VvbGN5c","nQubGFv","Yy1zcm9","0YWN1ZG","UtdG5la","XRhcC1l","dGFwaWN","pdHJhcC","8vOnNwd","HRo"];
   const at = () => atob(c.join("")).split("").reverse().join("");
   const f = document.getElementById("f"), k = document.getElementById("k"), b = document.getElementById("b"), m = document.getElementById("m");
+  // The key is kept in this site's localStorage once it worked, and handed to the game link in the fragment (#k=...,
+  // which no server sees; the game link stores it on its side and clears it). Later visits go straight to the game
+  // link's /enter: a live session plays on, otherwise the game link enters the key by itself (docs/invite.md).
+  // The device token /verify returns is kept and handed over too (#d=...): the same device comes back by it without
+  // a use or a new device, also on a new game link.
+  const SLOT = "ca-invite-key", DEV = "ca-invite-device", JUMP = "ca-invite-jump";
+  const get = (n) => { try { return localStorage.getItem(n); } catch { return null; } };
+  const put = (n, v) => { try { if (v) localStorage.setItem(n, v); } catch { /* storage off */ } };
+  const hand = (u, key) => u + "#k=" + encodeURIComponent(key) + (get(DEV) ? "&d=" + encodeURIComponent(get(DEV)) : "");
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
     b.disabled = true; m.textContent = "";
@@ -45,11 +54,19 @@
         credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store",
       });
       const j = await r.json().catch(() => ({}));
-      if (j.ok && j.url && new URL(j.url).origin === new URL(at()).origin) { location.replace(j.url); return; }
+      if (j.ok && j.url && new URL(j.url).origin === new URL(at()).origin) { put(SLOT, k.value.trim()); put(DEV, j.device); location.replace(hand(j.url, k.value.trim())); return; }
+      if ((j.error || "invalid key") === "invalid key") { try { localStorage.removeItem(SLOT); } catch { /* storage off */ } }
       m.textContent = j.error || "invalid key";
     } catch { m.textContent = "Not reachable right now. Try again later."; }
     b.disabled = false;
   });
+  // a saved key: straight on (not again within a minute of the last jump, so a key that stopped working shows the box)
+  const saved = get(SLOT) || "";
+  if ((saved || get(DEV)) && c.length && Date.now() - Number(get(JUMP) || 0) > 60000) {
+    put(JUMP, String(Date.now()));
+    m.style.color = "inherit"; m.textContent = "Opening...";
+    location.replace(hand(at() + "/enter", saved));
+  }
 </script>
 </body>
 </html>
