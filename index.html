@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fd+fp5yuKdsDMRdRBmgH6reCqLaUtvuDK4Aj82gnD6w='; style-src 'sha256-5cu8hApxcDEOMxjLv9JtBoTiZQVhD/cdo5X4ms+QRfk='; connect-src https:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hLfknFpJwwcr3ZRxQ6fR7/yYe3cTG3CkUhgS9Vkcj8A='; style-src 'sha256-5cu8hApxcDEOMxjLv9JtBoTiZQVhD/cdo5X4ms+QRfk='; connect-src https:; base-uri 'none'; form-action 'none'">
 <title>Access</title>
 <style>
   :root { --bg: #f4f5f7; --panel: #fff; --text: #1d2330; --muted: #677085; --line: #d9dde4; --accent: #2f5fd0; --bad: #b3392f;
@@ -44,7 +44,7 @@
   // never inside another site's frame (a meta CSP cannot say frame-ancestors): the page empties itself and stops
   if (window.top !== window.self) { document.body.replaceChildren(); throw new Error("framed"); }
   // the server's address, lightly obfuscated (not a secret: the server checks the key); written by the publish script
-  const c = ["bW9jLmV","yYWxmZH","VvbGN5c","nQubGxl","cHMtY2l","ub2hweW","xvcC1ja","W1vbm9j","ZS1zZWR","vYy8vOn","NwdHRo"];
+  const c = ["bW9jLmV","yYWxmZH","VvbGN5c","nQuc25p","LXR1b2J","hLXBpaH","NyZWJtZ","W0tZ25p","eWZpbGF","1cS8vOn","NwdHRo"];
   const at = () => atob(c.join("")).split("").reverse().join("");
   const f = document.getElementById("f"), k = document.getElementById("k"), b = document.getElementById("b"), m = document.getElementById("m");
   // The key is kept in this site's localStorage once it worked, and handed to the game link in the fragment (#k=...,
