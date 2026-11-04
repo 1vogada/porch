@@ -2,7 +2,7 @@
  "id": "./",
  "name": "Access",
  "short_name": "Access",
- "description": "Play Access",
+ "description": "Access",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
