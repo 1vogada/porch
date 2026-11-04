@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-onz7wfb43yk2ihn4VXRRJg4a8qChk6vzZa8nAESTGog='; style-src 'sha256-5cu8hApxcDEOMxjLv9JtBoTiZQVhD/cdo5X4ms+QRfk='; connect-src https:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ee4449X5y1Yt0Lmv72pUsr+tiT+ewoVs8hafDGbwqC8='; style-src 'sha256-kJRpN77HKzenmxuwjFjjQSpZTXy46DnwphpOV90PTT0='; connect-src https:; manifest-src 'self'; img-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Access">
+<meta name="theme-color" content="#101114">
 <title>Access</title>
 <style>
   :root { --bg: #f4f5f7; --panel: #fff; --text: #1d2330; --muted: #677085; --line: #d9dde4; --accent: #2f5fd0; --bad: #b3392f;
@@ -29,6 +34,9 @@
   #st::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
   #st.on { color: var(--on); }
   #off { display: none; font-size: 13px; color: var(--muted); margin: -6px 0 12px; }
+  [hidden] { display: none !important; }
+  button.alt { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  .note { font-size: 13px; color: var(--muted); margin: 12px 0 0; }
 </style>
 </head>
 <body>
@@ -39,6 +47,10 @@
   <input id="k" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" spellcheck="false" autocapitalize="characters" required>
   <button id="b" type="submit">Continue</button>
   <div id="m"></div>
+  <button id="go" type="button" class="alt" hidden>Open the game</button>
+  <button id="inst" type="button" class="alt" hidden>Install app</button>
+  <p id="ios" class="note" hidden>To install: tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>
+  <p id="how" class="note" hidden>Already installed? Open it from your apps. Otherwise use the browser's menu: <b>Install app</b> or <b>Add to Home screen</b>.</p>
 </form>
 <script>
   // never inside another site's frame (a meta CSP cannot say frame-ancestors): the page empties itself and stops
@@ -55,7 +67,27 @@
   const SLOT = "ca-invite-key", DEV = "ca-invite-device", JUMP = "ca-invite-jump";
   const get = (n) => { try { return localStorage.getItem(n); } catch { return null; } };
   const put = (n, v) => { try { if (v) localStorage.setItem(n, v); } catch { /* storage off */ } };
-  const hand = (u, key) => u + "#k=" + encodeURIComponent(key) + (get(DEV) ? "&d=" + encodeURIComponent(get(DEV)) : "");
+  // The installable app (docs/install-app.md): the publisher links a manifest and a service worker when this page is the
+  // app (APP_URL). Launched from the installed app (standalone), the jump marks the game tab (&a=1: the game link keeps it
+  // in sessionStorage) so the game's own install button stays hidden there. ?install (the game's install button) never
+  // jumps on by itself: it is here to install; it may hand over that game link's key and device token (#k=..&d=..),
+  // which are taken only when this site has none yet, and the fragment is cleared at once.
+  const q = new URLSearchParams(location.search), installing = q.has("install");
+  const mm = (s) => { try { return matchMedia(s).matches; } catch { return false; } };
+  const standalone = mm("(display-mode: standalone)") || navigator.standalone === true;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const appOn = !!document.querySelector('link[rel="manifest"]');
+  const takeHash = () => {
+    if (installing && !get(SLOT) && !get(DEV)) {
+      const hk = /[#&]k=([A-Za-z0-9-]{8,64})/.exec(location.hash), hd = /[#&]d=([A-Za-z0-9_-]{16,64})/.exec(location.hash);
+      if (hk) put(SLOT, hk[1]);
+      if (hd) put(DEV, hd[1]);
+    }
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  };
+  takeHash();
+  addEventListener("hashchange", takeHash);
+  const hand = (u, key) => u + "#k=" + encodeURIComponent(key) + (get(DEV) ? "&d=" + encodeURIComponent(get(DEV)) : "") + (standalone ? "&a=1" : "");
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
     b.disabled = true; m.textContent = "";
@@ -71,16 +103,48 @@
     } catch { m.textContent = "Not reachable right now. Try again later."; }
     b.disabled = false;
   });
+  // What the install corner shows: "button" (the browser offered its install prompt), "ios" (Safari has none: the Share
+  // hint), "how" (?install without a prompt after a moment: already installed, or a browser that installs from its
+  // menu), or "none" (not the app, already running as the app, or installed just now).
+  const installView = (s) => !s.appOn || s.standalone || s.installed ? "none" : s.prompt ? "button" : s.ios ? "ios" : s.installing && s.waited ? "how" : "none";
+  const inst = document.getElementById("inst"), iosHint = document.getElementById("ios"), how = document.getElementById("how");
+  let deferred = null, installed = false, waited = false;
+  const render = () => {
+    const v = installView({ appOn, standalone, installed, prompt: !!deferred, ios, installing, waited });
+    inst.hidden = v !== "button"; iosHint.hidden = v !== "ios"; how.hidden = v !== "how";
+  };
+  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; render(); });
+  addEventListener("appinstalled", () => { installed = true; deferred = null; render(); });
+  inst.addEventListener("click", async () => {
+    const e = deferred;
+    if (!e) return;
+    deferred = null; render();
+    try { await e.prompt(); if ((await e.userChoice).outcome === "accepted") installed = true; } catch { /* closed */ }
+    render();
+  });
+  if (appOn && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { /* no worker: no install */ });
+  setTimeout(() => { waited = true; render(); }, 2500);
+  render();
   // The game's status (docs/invite.md "Game status"): the game link's /status answers { online, players } without a
   // key. Any network error, timeout or other answer means offline (the tunnel or the PC is down). Every 30 s.
-  const st = document.getElementById("st"), off = document.getElementById("off");
-  let online = false;
+  const st = document.getElementById("st"), off = document.getElementById("off"), go = document.getElementById("go");
+  let online = false, jumping = false;
+  const known = () => !!(get(SLOT) || get(DEV)) && c.length > 0;
   const show = (on) => {
     online = on;
     st.textContent = on ? "Game: online" : "Game: offline";
     st.className = on ? "on" : "";
     off.style.display = on ? "none" : "block";
+    go.hidden = !(on && known() && !jumping);
   };
+  // this browser has a key or device token: on to the game link's /enter (a live session plays on, else it enters them)
+  const jump = () => {
+    jumping = true; go.hidden = true;
+    put(JUMP, String(Date.now()));
+    m.style.color = "inherit"; m.textContent = "Opening...";
+    location.replace(hand(at() + "/enter", get(SLOT) || ""));
+  };
+  go.addEventListener("click", jump);
   const check = async () => {
     if (!c.length) { show(false); return; }
     const ac = new AbortController(), t = setTimeout(() => ac.abort(), 6000);
@@ -94,14 +158,10 @@
   setInterval(check, 30000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void check(); });
   // a saved key: straight on once the game answers (not again within a minute of the last jump, so a key that stopped
-  // working shows the box); while it is offline the box stays, with the note
-  const saved = get(SLOT) || "";
+  // working shows the box, and never on ?install); then "Open the game" does it in one tap. While the game is offline
+  // the box stays, with the note
   check().then(() => {
-    if (online && (saved || get(DEV)) && c.length && Date.now() - Number(get(JUMP) || 0) > 60000) {
-      put(JUMP, String(Date.now()));
-      m.style.color = "inherit"; m.textContent = "Opening...";
-      location.replace(hand(at() + "/enter", saved));
-    }
+    if (online && known() && !installing && Date.now() - Number(get(JUMP) || 0) > 60000) jump();
   });
 </script>
 </body>
