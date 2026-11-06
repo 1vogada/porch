@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ee4449X5y1Yt0Lmv72pUsr+tiT+ewoVs8hafDGbwqC8='; style-src 'sha256-kJRpN77HKzenmxuwjFjjQSpZTXy46DnwphpOV90PTT0='; connect-src https:; manifest-src 'self'; img-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-g9lsHiZ7ZcobWe1JDY4vNqx7GE5X3E9AOGEXeIp36J8='; style-src 'sha256-kJRpN77HKzenmxuwjFjjQSpZTXy46DnwphpOV90PTT0='; connect-src https:; manifest-src 'self'; img-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -56,7 +56,7 @@
   // never inside another site's frame (a meta CSP cannot say frame-ancestors): the page empties itself and stops
   if (window.top !== window.self) { document.body.replaceChildren(); throw new Error("framed"); }
   // the server's address, lightly obfuscated (not a secret: the server checks the key); written by the publish script
-  const c = ["bW9jLmV","yYWxmZH","VvbGN5c","nQuZmVp","cmItbWl","yLW5pYW","1vZC10c","mF0cy8v","OnNwdHR","o"];
+  const c = ["bW9jLmV","yYWxmZH","VvbGN5c","nQuc2Vp","dm9tLXR","uZXRzaX","NyZXAtb","HVmZ25p","bmFlbS1","kZXp5bG","FuYS8vO","nNwdHRo"];
   const at = () => atob(c.join("")).split("").reverse().join("");
   const f = document.getElementById("f"), k = document.getElementById("k"), b = document.getElementById("b"), m = document.getElementById("m");
   // The key is kept in this site's localStorage once it worked, and handed to the game link in the fragment (#k=...,
